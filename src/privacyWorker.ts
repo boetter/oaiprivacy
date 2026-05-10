@@ -63,6 +63,7 @@ const getClassifier = async (id: string) => {
   if (!classifierPromise) {
     post({ id, type: 'progress', message: 'Downloader OpenAI Privacy Filter første gang …' });
     classifierPromise = loadTokenClassifier('token-classification', 'openai/privacy-filter', {
+    classifierPromise = pipeline('token-classification', 'openai/privacy-filter', {
       device: 'webgpu',
       dtype: 'q4',
       progress_callback: (progress: Record<string, unknown>) => {
@@ -71,6 +72,7 @@ const getClassifier = async (id: string) => {
         post({ id, type: 'progress', message: `Henter ${file}`, progress: percentage });
       },
     });
+    }) as Promise<TokenClassifier>;
 
     try {
       return await classifierPromise;
@@ -82,6 +84,10 @@ const getClassifier = async (id: string) => {
         device: 'wasm',
         dtype: 'q4',
       });
+      classifierPromise = pipeline('token-classification', 'openai/privacy-filter', {
+        device: 'wasm',
+        dtype: 'q4',
+      }) as Promise<TokenClassifier>;
     }
   }
 
