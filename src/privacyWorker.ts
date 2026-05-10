@@ -6,6 +6,18 @@ type TokenClassifier = (
   options: { aggregation_strategy: 'simple' },
 ) => Promise<PrivacySpan[]>;
 
+type ClassifierOptions = {
+  device: 'webgpu' | 'wasm';
+  dtype: 'q4';
+  progress_callback?: (progress: Record<string, unknown>) => void;
+};
+
+const loadTokenClassifier = pipeline as unknown as (
+  task: 'token-classification',
+  model: 'openai/privacy-filter',
+  options: ClassifierOptions,
+) => Promise<TokenClassifier>;
+
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
@@ -50,6 +62,7 @@ const redactByWords = (text: string, spans: PrivacySpan[], mode: RedactionMode) 
 const getClassifier = async (id: string) => {
   if (!classifierPromise) {
     post({ id, type: 'progress', message: 'Downloader OpenAI Privacy Filter første gang …' });
+    classifierPromise = loadTokenClassifier('token-classification', 'openai/privacy-filter', {
     classifierPromise = pipeline('token-classification', 'openai/privacy-filter', {
       device: 'webgpu',
       dtype: 'q4',
@@ -58,6 +71,7 @@ const getClassifier = async (id: string) => {
         const percentage = typeof progress.progress === 'number' ? progress.progress : undefined;
         post({ id, type: 'progress', message: `Henter ${file}`, progress: percentage });
       },
+    });
     }) as Promise<TokenClassifier>;
 
     try {
@@ -66,6 +80,10 @@ const getClassifier = async (id: string) => {
       console.warn('WebGPU kunne ikke bruges, falder tilbage til WASM.', error);
       runtime = 'wasm/q4';
       post({ id, type: 'progress', message: 'WebGPU er ikke tilgængelig – bruger WASM i browseren.' });
+      classifierPromise = loadTokenClassifier('token-classification', 'openai/privacy-filter', {
+        device: 'wasm',
+        dtype: 'q4',
+      });
       classifierPromise = pipeline('token-classification', 'openai/privacy-filter', {
         device: 'wasm',
         dtype: 'q4',
